@@ -1,5 +1,7 @@
 # @use-portal-co/portal-js
 
+[![npm](https://img.shields.io/npm/v/@use-portal-co/portal-js)](https://www.npmjs.com/package/@use-portal-co/portal-js)
+
 Realtime client SDK for [Portal](https://useportal.co).
 
 ## Installation
@@ -14,25 +16,6 @@ pnpm add @use-portal-co/portal-js
 
 ### 1. Wrap your app with `RealtimeProvider`
 
-```tsx
-import { RealtimeProvider } from "@use-portal-co/portal-js";
-
-function App() {
-  return (
-    <RealtimeProvider
-      authTokenProvider={async () => {
-        // Return a pre-minted Portal chat token from your backend
-        const res = await fetch("/api/chat-token");
-        const { token } = await res.json();
-        return token;
-      }}
-    >
-      <YourApp />
-    </RealtimeProvider>
-  );
-}
-```
-
 **BYOA mode** — if you're using your own auth provider, pass your `apiKey` and return your provider's JWT from `authTokenProvider`. The SDK will exchange it for a Portal token automatically:
 
 ```tsx
@@ -42,6 +25,26 @@ function App() {
 >
   <YourApp />
 </RealtimeProvider>
+```
+
+Alternatively, return a pre-minted Portal chat token directly from your backend:
+
+```tsx
+import { RealtimeProvider } from "@use-portal-co/portal-js";
+
+function App() {
+  return (
+    <RealtimeProvider
+      authTokenProvider={async () => {
+        const res = await fetch("/api/chat-token");
+        const { token } = await res.json();
+        return token;
+      }}
+    >
+      <YourApp />
+    </RealtimeProvider>
+  );
+}
 ```
 
 ### 2. Subscribe to a channel with `useChannel`
