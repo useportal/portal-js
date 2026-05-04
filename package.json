@@ -1,5 +1,5 @@
 {
-  "name": "portal-js",
+  "name": "@use-portal-co/portal-js",
   "version": "0.1.0",
   "description": "Realtime client SDK for Portal",
   "keywords": [
