@@ -8,12 +8,14 @@ import {
   type ReactNode,
 } from "react";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const DEFAULT_API_URL = "https://api.useportal.co";
+const DEFAULT_REALTIME_HOST = "realtime.useportal.co";
 
 interface ChatContextValue {
   environmentId: string;
   userId: string;
   token: string | null;
+  realtimeHost: string;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -23,7 +25,7 @@ interface ChatProviderProps {
   /**
    * Present → BYOA mode.
    * The SDK will exchange the token returned by `authTokenProvider` at
-   * POST /channels/token and receive a signed chat token in return.
+   * POST {apiUrl}/channels/token and receive a signed chat token in return.
    *
    * Absent → Developer-backend mode.
    * `authTokenProvider` should return a pre-minted chat token directly.
@@ -38,6 +40,10 @@ interface ChatProviderProps {
    * token expires. Use `useCallback` at the call site to keep it stable.
    */
   authTokenProvider?: () => Promise<string>;
+  /** Base URL of the Portal API. Defaults to "https://api.useportal.co". */
+  apiUrl?: string;
+  /** Hostname of the realtime server. Defaults to "realtime.useportal.co". */
+  realtimeHost?: string;
 }
 
 /** Decode exp/environmentId/userId from a base64url JWT payload. */
@@ -61,6 +67,8 @@ export function RealtimeProvider({
   children,
   apiKey,
   authTokenProvider,
+  apiUrl = DEFAULT_API_URL,
+  realtimeHost = DEFAULT_REALTIME_HOST,
 }: ChatProviderProps) {
   const [environmentId, setEnvironmentId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
@@ -81,7 +89,7 @@ export function RealtimeProvider({
 
     if (apiKey) {
       // BYOA — exchange external JWT for a Portal chat token
-      const res = await fetch(`${API_URL}/channels/token`, {
+      const res = await fetch(`${apiUrl}/channels/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey, externalToken: rawToken }),
@@ -96,7 +104,7 @@ export function RealtimeProvider({
 
     // Developer-backend mode — the caller already minted the chat token
     return rawToken;
-  }, [apiKey]);
+  }, [apiKey, apiUrl]);
 
   useEffect(() => {
     if (!authTokenProvider) return;
@@ -137,18 +145,17 @@ export function RealtimeProvider({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-    // Re-run only when the apiKey or the provider identity changes.
+    // Re-run only when the apiKey/apiUrl or the provider identity changes.
     // The providerRef keeps the inner loop up-to-date without causing re-runs.
-  }, [apiKey, authTokenProvider, fetchToken]);
+  }, [apiKey, apiUrl, authTokenProvider, fetchToken]);
 
   return (
-    <ChatContext.Provider value={{ environmentId, userId, token }}>
+    <ChatContext.Provider value={{ environmentId, userId, token, realtimeHost }}>
       {children}
     </ChatContext.Provider>
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useChatContext() {
   const context = useContext(ChatContext);
   if (context === undefined) {

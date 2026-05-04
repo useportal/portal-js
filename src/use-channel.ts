@@ -9,6 +9,7 @@ interface UseChannelProps {
   onMessage?: (event: WebSocketEventMap["message"]) => void;
   onClose?: (event: WebSocketEventMap["close"]) => void;
   onError?: (event: WebSocketEventMap["error"]) => void;
+  onParseError?: (raw: string, error: unknown) => void;
 }
 
 export const useChannel = ({
@@ -17,14 +18,15 @@ export const useChannel = ({
   onOpen,
   onClose,
   onError,
+  onParseError,
 }: UseChannelProps) => {
-  const { token, environmentId } = useChatContext();
+  const { token, environmentId, realtimeHost } = useChatContext();
   const [messagesByChannel, setMessagesByChannel] = useState<
     Record<string, Message[]>
   >({});
+
   const socket = usePartySocket({
-    host:
-      (import.meta.env.VITE_REALTIME_URL as string) || "realtime.useportal.co",
+    host: realtimeHost,
     room: `${environmentId}:${channelId}`,
     query: { token: token ?? "" },
     startClosed: !token,
@@ -40,7 +42,11 @@ export const useChannel = ({
         }));
         onMessage?.(event);
       } catch (error) {
-        console.log("parse error:", error);
+        if (onParseError) {
+          onParseError(event.data as string, error);
+        } else {
+          console.error("[useChannel] Failed to parse message:", error);
+        }
       }
     },
     onClose: (event) => {
