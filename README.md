@@ -94,6 +94,8 @@ function ChatRoom({ channelId }: { channelId: string }) {
 | Prop | Type | Required | Description |
 |---|---|---|---|
 | `channelId` | `string` | Yes | The channel to subscribe to |
+| `replay` | `"connect" \| "request"` | No | `"connect"` (default): the server sends recent message history immediately after connect. `"request"`: no automatic replay — fetch history on demand. |
+| `replayLimit` | `number` | No | Override the number of recent messages included in the connect-time replay. Server default is 50, hard cap 500. |
 | `onOpen` | `(event) => void` | No | WebSocket open callback |
 | `onMessage` | `(event) => void` | No | WebSocket message callback |
 | `onClose` | `(event) => void` | No | WebSocket close callback |
@@ -101,6 +103,8 @@ function ChatRoom({ channelId }: { channelId: string }) {
 | `onParseError` | `(raw: string, error: unknown) => void` | No | Called when an incoming message fails to parse |
 
 Returns `{ messages, sendMessage }`.
+
+`messages` is automatically deduplicated by `id`, so the message you optimistically appended via `sendMessage` won't appear twice when the server's broadcast echoes it back.
 
 ## License
 
