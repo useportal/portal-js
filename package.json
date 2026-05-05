@@ -1,6 +1,6 @@
 {
   "name": "@use-portal-co/portal-js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Realtime client SDK for Portal",
   "keywords": [
     "realtime",
@@ -10,7 +10,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/useportal/portal-js.git"
+    "url": "git+https://github.com/useportal/portal-js.git"
   },
   "author": "Rodrigo Weilg",
   "license": "MIT",
