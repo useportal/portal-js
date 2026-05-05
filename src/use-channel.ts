@@ -1,7 +1,7 @@
 import usePartySocket from "partysocket/react";
 import { useCallback, useState } from "react";
 import type { Message } from "./lib/types";
-import { useChatContext } from "./provider/chat-provider";
+import { useRealtimeContext } from "./provider/chat-provider";
 
 interface UseChannelProps {
   channelId: string;
@@ -20,7 +20,7 @@ export const useChannel = ({
   onError,
   onParseError,
 }: UseChannelProps) => {
-  const { token, environmentId, realtimeHost } = useChatContext();
+  const { token, environmentId, realtimeHost } = useRealtimeContext();
   const [messagesByChannel, setMessagesByChannel] = useState<
     Record<string, Message[]>
   >({});

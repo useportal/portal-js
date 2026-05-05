@@ -11,14 +11,14 @@ import {
 const DEFAULT_API_URL = "https://api.useportal.co";
 const DEFAULT_REALTIME_HOST = "realtime.useportal.co";
 
-interface ChatContextValue {
+interface RealtimeContextValue {
   environmentId: string;
   userId: string;
   token: string | null;
   realtimeHost: string;
 }
 
-const ChatContext = createContext<ChatContextValue | undefined>(undefined);
+const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
 
 interface ChatProviderProps {
   children: ReactNode;
@@ -177,16 +177,16 @@ export function RealtimeProvider({
   }, [apiKey, apiUrl, authTokenProvider, fetchToken]);
 
   return (
-    <ChatContext.Provider value={{ environmentId, userId, token, realtimeHost }}>
+    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost }}>
       {children}
-    </ChatContext.Provider>
+    </RealtimeContext.Provider>
   );
 }
 
-export function useChatContext() {
-  const context = useContext(ChatContext);
+export function useRealtimeContext() {
+  const context = useContext(RealtimeContext);
   if (context === undefined) {
-    throw new Error("useChatContext must be used within a RealtimeProvider");
+    throw new Error("useRealtimeContext must be used within a RealtimeProvider");
   }
   return context;
 }
