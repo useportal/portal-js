@@ -46,6 +46,16 @@ interface ChatProviderProps {
   realtimeHost?: string;
 }
 
+function getOrCreateAnonId(apiKey: string): string {
+  if (typeof window === "undefined") return `anon_${crypto.randomUUID()}`;
+  const storageKey = `portal_anon_${apiKey}`;
+  const existing = localStorage.getItem(storageKey);
+  if (existing) return existing;
+  const id = `anon_${crypto.randomUUID()}`;
+  localStorage.setItem(storageKey, id);
+  return id;
+}
+
 /** Decode exp/environmentId/userId from a base64url JWT payload. */
 function decodeJwtPayload(token: string): {
   exp?: number;
@@ -83,6 +93,23 @@ export function RealtimeProvider({
 
   const fetchToken = useCallback(async (): Promise<string | null> => {
     const provider = providerRef.current;
+
+    if (apiKey && !provider) {
+      // Anonymous mode — mint a token using a stable browser-scoped ID
+      const anonId = getOrCreateAnonId(apiKey);
+      const res = await fetch(`${apiUrl}/channels/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey, userId: anonId }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `Token exchange failed (${res.status})`);
+      }
+      const data = (await res.json()) as { token: string };
+      return data.token;
+    }
+
     if (!provider) return null;
 
     const rawToken = await provider();
@@ -107,7 +134,7 @@ export function RealtimeProvider({
   }, [apiKey, apiUrl]);
 
   useEffect(() => {
-    if (!authTokenProvider) return;
+    if (!authTokenProvider && !apiKey) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
