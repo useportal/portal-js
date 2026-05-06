@@ -17,6 +17,7 @@ interface RealtimeContextValue {
   token: string | null;
   realtimeHost: string;
   apiUrl: string;
+  refreshToken: () => void;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
@@ -84,6 +85,11 @@ export function RealtimeProvider({
   const [environmentId, setEnvironmentId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshToken = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   // Keep a stable ref to the latest provider so the inner async loop always
   // calls the most-recent version without it being a useEffect dependency.
@@ -173,12 +179,12 @@ export function RealtimeProvider({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-    // Re-run only when the apiKey/apiUrl or the provider identity changes.
+    // Re-run when apiKey/apiUrl/provider changes, or when refreshToken() is called.
     // The providerRef keeps the inner loop up-to-date without causing re-runs.
-  }, [apiKey, apiUrl, authTokenProvider, fetchToken]);
+  }, [apiKey, apiUrl, authTokenProvider, fetchToken, refreshKey]);
 
   return (
-    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost, apiUrl }}>
+    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost, apiUrl, refreshToken }}>
       {children}
     </RealtimeContext.Provider>
   );

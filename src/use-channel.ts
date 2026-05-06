@@ -43,7 +43,7 @@ export const useChannel = ({
   onError,
   onParseError,
 }: UseChannelProps) => {
-  const { token, userId, environmentId, realtimeHost, apiUrl } =
+  const { token, userId, environmentId, realtimeHost, apiUrl, refreshToken } =
     useRealtimeContext();
   const [messagesByChannel, setMessagesByChannel] = useState<
     Record<string, Message[]>
@@ -59,14 +59,17 @@ export const useChannel = ({
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
-  const query: Record<string, string> = { token: token ?? "" };
-  if (replay) query.replay = replay;
-  if (replayLimit !== undefined) query.replayLimit = String(replayLimit);
+  const queryFn = useCallback(() => {
+    const q: Record<string, string> = { token: tokenRef.current ?? "" };
+    if (replay) q.replay = replay;
+    if (replayLimit !== undefined) q.replayLimit = String(replayLimit);
+    return q;
+  }, [replay, replayLimit]);
 
   const socket = usePartySocket({
     host: realtimeHost,
     room: `${environmentId}:${channelId}`,
-    query,
+    query: queryFn,
     startClosed: !token,
     onOpen: (event) => {
       onOpen?.(event);
@@ -105,6 +108,9 @@ export const useChannel = ({
       }
     },
     onClose: (event) => {
+      if (event.code === 4001) {
+        refreshToken();
+      }
       onClose?.(event);
     },
     onError: (err) => {
