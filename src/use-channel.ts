@@ -1,6 +1,6 @@
 import usePartySocket from "partysocket/react";
-import { useCallback, useState } from "react";
-import type { Message } from "./lib/types";
+import { useCallback, useRef, useState } from "react";
+import type { HistoryRow, Message, ReplayEnvelope } from "./lib/types";
 import { useRealtimeContext } from "./provider/chat-provider";
 
 interface UseChannelProps {
@@ -14,13 +14,19 @@ interface UseChannelProps {
   onParseError?: (raw: string, error: unknown) => void;
 }
 
-type ReplayEnvelope = { type: "replay"; messages: Message[] };
-
 const isReplayEnvelope = (value: unknown): value is ReplayEnvelope =>
   typeof value === "object" &&
   value !== null &&
   (value as { type?: unknown }).type === "replay" &&
   Array.isArray((value as { messages?: unknown }).messages);
+
+const normalizeHistoryRow = (row: HistoryRow): Message => ({
+  id: row.id,
+  type: row.type,
+  content: row.content,
+  senderId: row.end_user_id,
+  timestamp: row.created_at,
+});
 
 export const useChannel = ({
   channelId,
@@ -32,10 +38,20 @@ export const useChannel = ({
   onError,
   onParseError,
 }: UseChannelProps) => {
-  const { token, environmentId, realtimeHost } = useRealtimeContext();
+  const { token, environmentId, realtimeHost, apiUrl } = useRealtimeContext();
   const [messagesByChannel, setMessagesByChannel] = useState<
     Record<string, Message[]>
   >({});
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const inFlightRef = useRef(false);
+  const messagesRef = useRef(messagesByChannel);
+  messagesRef.current = messagesByChannel;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
 
   const query: Record<string, string> = { token: token ?? "" };
   if (replay) query.replay = replay;
@@ -101,8 +117,70 @@ export const useChannel = ({
     [socket, channelId],
   );
 
+  const loadMore = useCallback(
+    async (opts?: { limit?: number }): Promise<void> => {
+      if (inFlightRef.current) return;
+      if (!hasMoreRef.current) return;
+      const currentToken = tokenRef.current;
+      if (!currentToken) return;
+
+      const channelMessages = messagesRef.current[channelId] ?? [];
+      const cursor = channelMessages[0]?.id;
+      const limit = opts?.limit ?? 50;
+
+      const url = new URL(`${apiUrl}/messages/${channelId}/history`);
+      url.searchParams.set("limit", String(limit));
+      if (cursor) url.searchParams.set("before", cursor);
+
+      inFlightRef.current = true;
+      setIsLoadingMore(true);
+      try {
+        const res = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${currentToken}` },
+        });
+
+        if (res.status === 401) {
+          console.error(
+            "[useChannel] loadMore: 401 from /messages/.../history — Portal API auth middleware is not accepting end-user JWTs on this endpoint. Server-side fix required.",
+          );
+          return;
+        }
+        if (!res.ok) {
+          console.error(
+            `[useChannel] loadMore: history fetch failed (${res.status})`,
+          );
+          return;
+        }
+
+        const rows = (await res.json()) as HistoryRow[];
+
+        if (rows.length === 0) {
+          setHasMore(false);
+          return;
+        }
+
+        const normalized = rows.map(normalizeHistoryRow);
+        setMessagesByChannel((prev) => {
+          const existing = prev[channelId] ?? [];
+          const existingIds = new Set(existing.map((m) => m.id));
+          const fresh = normalized.filter((m) => !existingIds.has(m.id));
+          return { ...prev, [channelId]: [...fresh, ...existing] };
+        });
+      } catch (err) {
+        console.error("[useChannel] loadMore failed:", err);
+      } finally {
+        inFlightRef.current = false;
+        setIsLoadingMore(false);
+      }
+    },
+    [apiUrl, channelId],
+  );
+
   return {
     messages: messagesByChannel[channelId] ?? [],
     sendMessage,
+    loadMore,
+    hasMore,
+    isLoadingMore,
   };
 };

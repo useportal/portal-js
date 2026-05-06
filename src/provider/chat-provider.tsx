@@ -16,6 +16,7 @@ interface RealtimeContextValue {
   userId: string;
   token: string | null;
   realtimeHost: string;
+  apiUrl: string;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
@@ -177,7 +178,7 @@ export function RealtimeProvider({
   }, [apiKey, apiUrl, authTokenProvider, fetchToken]);
 
   return (
-    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost }}>
+    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost, apiUrl }}>
       {children}
     </RealtimeContext.Provider>
   );
