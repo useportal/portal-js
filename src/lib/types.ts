@@ -15,3 +15,11 @@ export type HistoryRow = {
   end_user_id: string;
   created_at: string;
 };
+
+export type SendMessageInput = {
+  content: string;
+  id?: string;
+  type?: Message["type"];
+  senderId?: string;
+  timestamp?: string;
+};

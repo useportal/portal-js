@@ -1,6 +1,11 @@
 import usePartySocket from "partysocket/react";
 import { useCallback, useRef, useState } from "react";
-import type { HistoryRow, Message, ReplayEnvelope } from "./lib/types";
+import type {
+  HistoryRow,
+  Message,
+  ReplayEnvelope,
+  SendMessageInput,
+} from "./lib/types";
 import { useRealtimeContext } from "./provider/chat-provider";
 
 interface UseChannelProps {
@@ -38,7 +43,8 @@ export const useChannel = ({
   onError,
   onParseError,
 }: UseChannelProps) => {
-  const { token, environmentId, realtimeHost, apiUrl } = useRealtimeContext();
+  const { token, userId, environmentId, realtimeHost, apiUrl } =
+    useRealtimeContext();
   const [messagesByChannel, setMessagesByChannel] = useState<
     Record<string, Message[]>
   >({});
@@ -107,14 +113,21 @@ export const useChannel = ({
   });
 
   const sendMessage = useCallback(
-    (message: Message) => {
+    (input: SendMessageInput) => {
+      const message: Message = {
+        id: input.id ?? crypto.randomUUID(),
+        type: input.type ?? "text",
+        content: input.content,
+        senderId: input.senderId ?? userId,
+        timestamp: input.timestamp ?? new Date().toISOString(),
+      };
       socket.send(JSON.stringify(message));
       setMessagesByChannel((prev) => ({
         ...prev,
         [channelId]: [...(prev[channelId] ?? []), message],
       }));
     },
-    [socket, channelId],
+    [socket, channelId, userId],
   );
 
   const loadMore = useCallback(
