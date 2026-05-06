@@ -86,8 +86,10 @@ export function RealtimeProvider({
   const [userId, setUserId] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const isRefreshingRef = useRef(false);
 
   const refreshToken = useCallback(() => {
+    if (isRefreshingRef.current) return;
     setRefreshKey((k) => k + 1);
   }, []);
 
@@ -147,6 +149,7 @@ export function RealtimeProvider({
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const run = async () => {
+      isRefreshingRef.current = true;
       try {
         const chatToken = await fetchToken();
         if (cancelled || !chatToken) return;
@@ -170,6 +173,11 @@ export function RealtimeProvider({
         }
       } catch (err) {
         console.error("[RealtimeProvider] Failed to obtain chat token:", err);
+      } finally {
+        // Only clear the flag if this run() instance wasn't superseded by a
+        // cleanup + new effect. A cancelled instance must not clear the flag
+        // because the new effect's run() has already set it to true.
+        if (!cancelled) isRefreshingRef.current = false;
       }
     };
 
@@ -177,6 +185,7 @@ export function RealtimeProvider({
 
     return () => {
       cancelled = true;
+      isRefreshingRef.current = false;
       if (timer) clearTimeout(timer);
     };
     // Re-run when apiKey/apiUrl/provider changes, or when refreshToken() is called.
