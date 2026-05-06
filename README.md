@@ -60,17 +60,7 @@ function ChatRoom({ channelId }: { channelId: string }) {
       {messages.map((msg) => (
         <p key={msg.id}>{msg.content}</p>
       ))}
-      <button
-        onClick={() =>
-          sendMessage({
-            id: crypto.randomUUID(),
-            type: "text",
-            content: "Hello!",
-            senderId: "user-123",
-            timestamp: new Date().toISOString(),
-          })
-        }
-      >
+      <button onClick={() => sendMessage({ content: "Hello!" })}>
         Send
       </button>
     </div>
