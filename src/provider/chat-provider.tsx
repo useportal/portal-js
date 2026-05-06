@@ -91,6 +91,11 @@ export function RealtimeProvider({
   const refreshToken = useCallback(() => {
     if (isRefreshingRef.current) return;
     setRefreshKey((k) => k + 1);
+    // Note: if authTokenProvider deterministically returns an already-expired
+    // token, each successful refresh will still yield a 4001, triggering
+    // another refresh indefinitely. That's the app's bug to fix, but a
+    // max-retries-per-window counter could be added here if it becomes a
+    // problem in practice.
   }, []);
 
   // Keep a stable ref to the latest provider so the inner async loop always
