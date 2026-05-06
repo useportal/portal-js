@@ -1,6 +1,6 @@
 {
   "name": "@use-portal-co/portal-js",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Realtime client SDK for Portal",
   "keywords": [
     "realtime",
