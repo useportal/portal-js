@@ -6,7 +6,7 @@ import type {
   ReplayEnvelope,
   SendMessageInput,
 } from "./lib/types";
-import { useRealtimeContext } from "./provider/chat-provider";
+import { useRealtimeContext } from "./provider/realtime-provider";
 
 interface UseChannelProps {
   channelId: string;
