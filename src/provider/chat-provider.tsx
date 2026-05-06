@@ -22,7 +22,7 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
 
-interface ChatProviderProps {
+interface RealtimeProviderProps {
   children: ReactNode;
   /**
    * Present → BYOA mode.
@@ -81,7 +81,7 @@ export function RealtimeProvider({
   authTokenProvider,
   apiUrl = DEFAULT_API_URL,
   realtimeHost = DEFAULT_REALTIME_HOST,
-}: ChatProviderProps) {
+}: RealtimeProviderProps) {
   const [environmentId, setEnvironmentId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
