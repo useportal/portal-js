@@ -34,14 +34,15 @@ interface RealtimeProviderProps {
    */
   apiKey?: string;
   /**
-   * Callback that returns either:
+   * A static token string or a callback that returns either:
    *   - An external provider JWT (when `apiKey` is set — BYOA)
    *   - A pre-minted Portal chat token (Developer-backend mode)
    *
-   * The SDK calls this automatically and proactively refreshes before the
-   * token expires. Use `useCallback` at the call site to keep it stable.
+   * When a callback is provided, the SDK calls it automatically and
+   * proactively refreshes before the token expires. Use `useCallback` at
+   * the call site to keep it stable.
    */
-  authTokenProvider?: () => Promise<string>;
+  authTokenProvider?: string | (() => Promise<string>);
   /** Base URL of the Portal API. Defaults to "https://api.useportal.co". */
   apiUrl?: string;
   /** Hostname of the realtime server. Defaults to "realtime.useportal.co". */
@@ -126,7 +127,7 @@ export function RealtimeProvider({
 
     if (!provider) return null;
 
-    const rawToken = await provider();
+    const rawToken = typeof provider === "string" ? provider : await provider();
 
     if (apiKey) {
       // BYOA — exchange external JWT for a Portal chat token
