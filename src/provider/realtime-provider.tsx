@@ -170,8 +170,11 @@ export function RealtimeProvider({
         if (envId) setEnvironmentId(envId);
         if (uid) setUserId(uid);
 
-        if (exp) {
-          // Refresh 5 minutes before expiry (minimum 0ms delay)
+        if (exp && typeof providerRef.current !== "string") {
+          // Refresh 5 minutes before expiry (minimum 0ms delay).
+          // Skipped for static string providers — they always return the same
+          // token, so scheduling a refresh would busy-loop once the token
+          // is near or past expiry.
           const delay = Math.max(exp * 1000 - Date.now() - 5 * 60 * 1000, 0);
           timer = setTimeout(() => {
             if (!cancelled) run();
