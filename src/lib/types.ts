@@ -5,3 +5,13 @@ export interface Message {
   senderId: string;
   timestamp: string;
 }
+
+export type ReplayEnvelope = { type: "replay"; messages: Message[] };
+
+export type HistoryRow = {
+  id: string;
+  type: Message["type"];
+  content: string;
+  end_user_id: string;
+  created_at: string;
+};
