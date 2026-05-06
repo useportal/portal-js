@@ -17,11 +17,12 @@ interface RealtimeContextValue {
   token: string | null;
   realtimeHost: string;
   apiUrl: string;
+  refreshToken: () => void;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
 
-interface ChatProviderProps {
+interface RealtimeProviderProps {
   children: ReactNode;
   /**
    * Present → BYOA mode.
@@ -33,14 +34,15 @@ interface ChatProviderProps {
    */
   apiKey?: string;
   /**
-   * Callback that returns either:
+   * A static token string or a callback that returns either:
    *   - An external provider JWT (when `apiKey` is set — BYOA)
    *   - A pre-minted Portal chat token (Developer-backend mode)
    *
-   * The SDK calls this automatically and proactively refreshes before the
-   * token expires. Use `useCallback` at the call site to keep it stable.
+   * When a callback is provided, the SDK calls it automatically and
+   * proactively refreshes before the token expires. Use `useCallback` at
+   * the call site to keep it stable.
    */
-  authTokenProvider?: () => Promise<string>;
+  authTokenProvider?: string | (() => Promise<string>);
   /** Base URL of the Portal API. Defaults to "https://api.useportal.co". */
   apiUrl?: string;
   /** Hostname of the realtime server. Defaults to "realtime.useportal.co". */
@@ -80,10 +82,22 @@ export function RealtimeProvider({
   authTokenProvider,
   apiUrl = DEFAULT_API_URL,
   realtimeHost = DEFAULT_REALTIME_HOST,
-}: ChatProviderProps) {
+}: RealtimeProviderProps) {
   const [environmentId, setEnvironmentId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const isRefreshingRef = useRef(false);
+
+  const refreshToken = useCallback(() => {
+    if (isRefreshingRef.current) return;
+    setRefreshKey((k) => k + 1);
+    // Note: if authTokenProvider deterministically returns an already-expired
+    // token, each successful refresh will still yield a 4001, triggering
+    // another refresh indefinitely. That's the app's bug to fix, but a
+    // max-retries-per-window counter could be added here if it becomes a
+    // problem in practice.
+  }, []);
 
   // Keep a stable ref to the latest provider so the inner async loop always
   // calls the most-recent version without it being a useEffect dependency.
@@ -113,7 +127,7 @@ export function RealtimeProvider({
 
     if (!provider) return null;
 
-    const rawToken = await provider();
+    const rawToken = typeof provider === "string" ? provider : await provider();
 
     if (apiKey) {
       // BYOA — exchange external JWT for a Portal chat token
@@ -141,6 +155,7 @@ export function RealtimeProvider({
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const run = async () => {
+      isRefreshingRef.current = true;
       try {
         const chatToken = await fetchToken();
         if (cancelled || !chatToken) return;
@@ -155,8 +170,11 @@ export function RealtimeProvider({
         if (envId) setEnvironmentId(envId);
         if (uid) setUserId(uid);
 
-        if (exp) {
-          // Refresh 5 minutes before expiry (minimum 0ms delay)
+        if (exp && typeof providerRef.current !== "string") {
+          // Refresh 5 minutes before expiry (minimum 0ms delay).
+          // Skipped for static string providers — they always return the same
+          // token, so scheduling a refresh would busy-loop once the token
+          // is near or past expiry.
           const delay = Math.max(exp * 1000 - Date.now() - 5 * 60 * 1000, 0);
           timer = setTimeout(() => {
             if (!cancelled) run();
@@ -164,6 +182,11 @@ export function RealtimeProvider({
         }
       } catch (err) {
         console.error("[RealtimeProvider] Failed to obtain chat token:", err);
+      } finally {
+        // Only clear the flag if this run() instance wasn't superseded by a
+        // cleanup + new effect. A cancelled instance must not clear the flag
+        // because the new effect's run() has already set it to true.
+        if (!cancelled) isRefreshingRef.current = false;
       }
     };
 
@@ -171,14 +194,15 @@ export function RealtimeProvider({
 
     return () => {
       cancelled = true;
+      isRefreshingRef.current = false;
       if (timer) clearTimeout(timer);
     };
-    // Re-run only when the apiKey/apiUrl or the provider identity changes.
+    // Re-run when apiKey/apiUrl/provider changes, or when refreshToken() is called.
     // The providerRef keeps the inner loop up-to-date without causing re-runs.
-  }, [apiKey, apiUrl, authTokenProvider, fetchToken]);
+  }, [apiKey, apiUrl, authTokenProvider, fetchToken, refreshKey]);
 
   return (
-    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost, apiUrl }}>
+    <RealtimeContext.Provider value={{ environmentId, userId, token, realtimeHost, apiUrl, refreshToken }}>
       {children}
     </RealtimeContext.Provider>
   );
